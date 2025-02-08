@@ -1,0 +1,13 @@
+# Base dependencies
+colorama>=0.4.6
+
+# Development dependencies
+black>=23.0.0
+flake8>=6.0.0
+pylint>=3.0.0
+pytest>=7.0.0
+pytest-cov>=4.1.0
+
+# Project specific
+python-dateutil>=2.8.2
+pathlib>=1.0.1
