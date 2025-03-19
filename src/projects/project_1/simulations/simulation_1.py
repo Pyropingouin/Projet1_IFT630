@@ -132,14 +132,14 @@ class Simulation1:
     def _create_sync_manager(self):
         """Crée le gestionnaire de synchronisation approprié"""
         sync_managers = {
-            SyncType.MUTEX: mutex_sync.MutexSyncManager,
-            SyncType.RLOCK: rlock_sync.RLockSyncManager,
+            # SyncType.MUTEX: mutex_sync.MutexSyncManager,
+            # SyncType.RLOCK: rlock_sync.RLockSyncManager,
             SyncType.SEMAPHORE: semaphore_sync.SemaphoreSyncManager,
             SyncType.CONDITION: condition_sync.ConditionSyncManager,
-            SyncType.BARRIER: barrier_sync.BarrierSyncManager,
-            SyncType.RWLOCK: rwlock_sync.RWLockSyncManager,
-            SyncType.FUTURE: future_sync.FutureSyncManager,
-            SyncType.MONITOR: monitor_sync.MonitorSyncManager
+            # SyncType.BARRIER: barrier_sync.BarrierSyncManager,
+            # SyncType.RWLOCK: rwlock_sync.RWLockSyncManager,
+            # SyncType.FUTURE: future_sync.FutureSyncManager,
+            # SyncType.MONITOR: monitor_sync.MonitorSyncManager
         }
         
         manager_class = sync_managers.get(self.sync_type)

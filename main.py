@@ -6,6 +6,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from src.projects.project_0.simulations.simulation_0 import Simulation0
 from src.projects.project_1.simulations.simulation_1 import Simulation1
+from src.projects.project_2.simulations.simulation_2 import Simulation2
+
         
 
 def run_simulation(sim_number: int, duration: int = 60) -> None:
@@ -21,9 +23,12 @@ def run_simulation(sim_number: int, duration: int = 60) -> None:
     if sim_number == 0:
         Simulation0.run(duration)
     elif sim_number == 1:
-        Simulation1.run_simulation_1(duration)
+        Simulation1.run(duration=duration, sync_type="mutex")  
+    elif sim_number == 2:
+        print("Simulation 2")
+        Simulation2.run(duration) 
     else:
-        print(f"La simulation {sim_number} n'est pas encore prête")
+        print(f"La simulation {sim_number} n'est pas encore prête.")
 
 def run_all_simulations(duration: int = 60) -> None:
     """
