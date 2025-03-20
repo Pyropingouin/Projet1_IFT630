@@ -10,9 +10,10 @@ Classes:
     MessageBusAdapter: Adaptateur pour les objets Bus
     MessageStopAdapter: Adaptateur pour les objets Stop
 
-Auteur: [Votre Nom]
+Auteur: [Cédrik Lampron]
 """
 
+import logging
 from src.models.bus import Bus
 from src.models.stop import Stop
 from src.models.passenger import Passenger
@@ -54,6 +55,8 @@ class MessageBusAdapter(Subscriber):
             message: Le message reçu
         """
         try:
+           
+            #raise Exception("Une erreur est survenue")
             # Ignorer les messages envoyés par soi-même pour éviter les boucles
             if message.sender_id == self.id:
                 return
@@ -143,8 +146,24 @@ class MessageBusAdapter(Subscriber):
         - Mettre à jour la route actuelle du bus
         - Gérer les cas où la route n'existe pas
         """
-        # TODO : À implémenter
-        pass
+        #Todo: DONE
+
+        # extraction des informations pertinentes du message        
+        bus_id = message.data.get('bus_id')
+        new_route = message.data.get('route_id')
+        
+        # s'assurer que les informations sont valides et/ou pertinentes
+        if bus_id != self.bus.id or new_route is None:
+            # gestion d'une route inexistante, on ne fait pas la mise à jour de la route pour le bus
+            logging.warning(f"Bus {self.bus.id}: Route non spécifiée ou incorrecte dans le message: {message.data}")
+            return
+        
+    
+        # mise à jour de la route actuelle du bus
+        if hasattr(self.bus, 'current_route'):
+            self.bus.current_route = new_route
+
+
     
     def _handle_schedule_update(self, message: Message) -> None:
         """
@@ -155,8 +174,39 @@ class MessageBusAdapter(Subscriber):
         - Mettre à jour les horaires de départ/arrivée du bus
         - Ajuster le planning du bus en conséquence
         """
-        # TODO : À implémenter
-        pass
+
+
+        # extraction des informations pertinentes du message        
+        bus_id = message.data.get('bus_id')
+        departure_time = message.data.get('departure_time')
+        arrival_time = message.data.get('arrival_time')
+        
+        # s'assurer que les informations sont valides et/ou pertinentes
+        if bus_id != self.bus.id or departure_time is None or arrival_time is None:
+            return
+        
+
+        # ajout des attributes nécéssaires si le bus ne les possèdes pas déja
+        if not hasattr(self.bus, 'departure_time'):
+           self.bus.departure_time = {}
+
+        if not hasattr(self.bus, "arrival_time"):
+           self.bus.arrival_time = {}   
+        
+           
+        # mise à jour des temps d'arrivée et de départ du bus 
+        if hasattr(self.bus, 'departure_time'):
+            self.bus.departure_time = departure_time
+               
+        if hasattr(self.bus, 'arrival_time'):
+            self.bus.arrival_time = arrival_time    
+
+
+
+        logging.info(f"Bus {self.bus.id}: Horaire mis à jour - Départ: {departure_time}, Arrivée: {arrival_time}")
+
+        #Todo: DONE
+
     
     def _handle_stop_status_update(self, message: Message) -> None:
         """
@@ -168,8 +218,18 @@ class MessageBusAdapter(Subscriber):
         - Adapter le comportement du bus en fonction de l'état de l'arrêt
         (ex: file d'attente, occupation, passagers en attente)
         """
-        # TODO : À implémenter
-        pass
+        #Todo:
+        stop_id = message.data.get('stop_id')
+        waiting_passengers = message.data.get('waiting_passengers', 0)
+        is_occupied = message.data.get('is_occupied', False)
+        
+        if not stop_id or not hasattr(self.bus, 'current_stop'):
+            return
+        
+
+        #ici changé pour stop et pas bus
+        if self.bus.current_stop.stop_id == stop_id:
+            self.bus.current_stop.update_status(waiting_passengers, is_occupied)
         
         
     
@@ -394,10 +454,35 @@ class MessageStopAdapter(Subscriber):
         - Ajouter le passager à la liste des passagers de l'arrêt
         - Mettre à jour les statistiques de l'arrêt
         """
+
+        #Todo:
+        passenger_id = message.data.get('passenger_id')
         stop_id = message.data.get('stop_id')
         
-        # TODO : À implémenter
-        pass
+       
+        if self.bus.current_stop.stop_id != stop_id:
+            logging.warning(f"Arrêt {self.bus.current_stop.stop_id}: N'est pas concerné par ce message: {message.data}")
+            return
+        
+        # Vérifier si le passager est dans la liste des passagers en attente de l'arrêt
+        passenger = next((p for p in self.bus.current_stop.waiting_passengers if p.id == passenger_id), None)
+        if passenger is None:
+            logging.warning(f"Passager {passenger_id} non trouvé dans la liste d'attente de l'arrêt {stop_id}.")
+            return
+        
+        logging.info(f"Passager {passenger.name} ({passenger_id}) descendu à l'arrêt {stop_id}")
+        
+        # Ajouter le passager à la liste des passagers de l'arrêt
+        self.bus.current_stop.passenger_list.append(passenger)
+        self.bus.current_stop.waiting_passengers.remove(passenger)
+        passenger.current_stop = self.bus.current_stop
+        
+        logging.info(f"Passager {passenger.name} ajouté à l'arrêt {self.bus.current_stop.name}")
+
+    
+
+
+      
     
     def _handle_capacity_update(self, message: Message) -> None:
         """
@@ -413,8 +498,38 @@ class MessageStopAdapter(Subscriber):
         - Mettre à jour l'affichage virtuel de l'arrêt
     
         """
-        # TODO : À implémenter
-        pass
+        #Todo:
+
+        bus_id = message.data.get("bus_id")
+        stop_id = message.data.get("stop_id")
+        available_seats = message.data.get("capacity")
+        
+        if bus_id != self.bus.id or available_seats is None or self.stop.stop_id != stop_id:
+            return
+        
+        self.bus.capacity = available_seats
+        logging.info(f"Bus {self.bus.id}: Capacité mise à jour {available_seats}")
+        
+        # Vérifier si l'arrêt actuel a des passagers en attente
+        if hasattr(self.bus, 'current_stop') and hasattr(self.bus.current_stop, 'waiting_passengers'):
+            stop = self.bus.current_stop
+            waiting_passengers = stop.waiting_passengers
+            
+            if waiting_passengers:
+                logging.info(f"Bus {self.bus.id}: {len(waiting_passengers)} passagers en attente à l'arrêt {stop.stop_id}")
+                
+                # Trier les passagers en attente selon un critère (ex: priorité, temps d'attente, etc.)
+                sorted_passengers = sorted(waiting_passengers, key=lambda p: p.trip_start_time or 0)
+                
+                for passenger in sorted_passengers[:available_seats]:
+                    if self.bus.add_passenger(passenger):
+                        stop.waiting_passengers.remove(passenger)
+                        logging.info(f"Passager {passenger.name} embarqué dans le bus {self.bus.id}")
+        
+        logging.info(f"Bus {self.bus.id}: Mise à jour de capacité traitée")
+            
+        
+        
     
     def publish_stop_status(self, bus_arrivals=None, bus_departures=None) -> None:
         """
